@@ -1,0 +1,506 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// etCupi — Ethiopian corporate payments & expense management
+// All monetary values are stored as BigInt minor units (santim).
+// 1 ETB = 100 santim.
+// ─────────────────────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  COMPANY_ADMIN
+  FINANCE_MANAGER
+  EMPLOYEE
+  MERCHANT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum MerchantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum WalletType {
+  COMPANY
+  EMPLOYEE
+  MERCHANT
+  PLATFORM
+}
+
+enum LedgerAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+}
+
+enum TransactionType {
+  PAYMENT
+  ALLOCATION
+  TOPUP
+  REVERSAL
+  BUDGET_REQUEST
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REVERSED
+  CANCELLED
+}
+
+enum QrCodeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PaymentRequestStatus {
+  OPEN
+  AWAITING_APPROVAL
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+enum ReceiptStatus {
+  PENDING
+  REVIEWED
+  FLAGGED
+}
+
+enum NotificationType {
+  PAYMENT_COMPLETED
+  PAYMENT_FAILED
+  PAYMENT_REQUIRES_APPROVAL
+  PAYMENT_APPROVED
+  PAYMENT_REJECTED
+  PAYMENT_REVERSED
+  PAYMENT_RECEIVED
+  BUDGET_ALLOCATED
+  BUDGET_UPDATED
+  LIMIT_EXCEEDED
+  EMPLOYEE_LIMITS_UPDATED
+  EMPLOYEE_STATUS_CHANGED
+  COMPANY_UPDATED
+  BUDGET_REQUEST_SUBMITTED
+  BUDGET_REQUEST_DECIDED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  phone        String?
+  role         UserRole   @default(EMPLOYEE)
+  status       UserStatus @default(ACTIVE)
+  companyId    String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  company           Company?          @relation("CompanyMembers", fields: [companyId], references: [id], onDelete: SetNull)
+  employeeProfile   EmployeeProfile?  @relation("UserEmployeeProfile")
+  merchantProfile   Merchant?         @relation("MerchantUser")
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  approvalDecisions ApprovalRequest[] @relation("ApprovalDecisions")
+
+  @@index([companyId])
+  @@index([role])
+}
+
+model Company {
+  id           String        @id @default(cuid())
+  name         String
+  businessType String
+  phone        String
+  email        String
+  address      String?
+  city         String        @default("Addis Ababa")
+  subCity      String?
+  description  String?
+  logoUrl      String?
+  status       CompanyStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  members        User[]            @relation("CompanyMembers")
+  wallets        Wallet[]
+  employees      EmployeeProfile[]
+  departments    Department[]
+  categories     Category[]
+  approvalRules  ApprovalRule[]
+  spendingLimits SpendingLimit[]
+  budgets        Budget[]
+  auditLogs      AuditLog[]
+  transactions   Transaction[]     @relation("CompanyTransactions")
+
+  @@index([status])
+}
+
+model EmployeeProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  companyId    String
+  employeeCode String   @unique
+  paymentId    String   @unique
+  departmentId String?
+  title        String?
+  monthlyLimit BigInt   @default(0)
+  dailyLimit   BigInt   @default(0)
+  txLimit      BigInt   @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user             User              @relation("UserEmployeeProfile", fields: [userId], references: [id], onDelete: Cascade)
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  department       Department?       @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  wallet           Wallet?           @relation("EmployeeWallet")
+  categories       Category[]        @relation("EmployeeCategories")
+  approvalRequests ApprovalRequest[] @relation("ApprovalRequests")
+  receipts         Receipt[]
+  budgets          Budget[]
+
+  @@index([companyId])
+  @@index([departmentId])
+}
+
+model Merchant {
+  id           String         @id @default(cuid())
+  userId       String         @unique
+  merchantCode String         @unique
+  paymentId    String         @unique
+  businessName String
+  category     String
+  phone        String
+  email        String?
+  city         String         @default("Addis Ababa")
+  subCity      String?
+  address      String?
+  status       MerchantStatus @default(ACTIVE)
+  logoUrl      String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  user            User             @relation("MerchantUser", fields: [userId], references: [id], onDelete: Cascade)
+  wallet          Wallet?          @relation("MerchantWallet")
+  qrCodes         QrCode[]
+  transactions    Transaction[]    @relation("MerchantTransactions")
+  paymentRequests PaymentRequest[]
+
+  @@index([status])
+}
+
+model Wallet {
+  id               String     @id @default(cuid())
+  ownerType        WalletType
+  companyId        String?
+  employeeId       String?    @unique
+  merchantId       String?    @unique
+  balance          BigInt     @default(0)
+  currency         String     @default("ETB")
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  company            Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeProfile    EmployeeProfile? @relation("EmployeeWallet", fields: [employeeId], references: [id], onDelete: Cascade)
+  merchant           Merchant?      @relation("MerchantWallet", fields: [merchantId], references: [id], onDelete: Cascade)
+  ledgerEntries      LedgerEntry[]
+  sentTransactions   Transaction[]  @relation("TxSender")
+  receivedTransactions Transaction[] @relation("TxRecipient")
+
+  @@index([companyId])
+  @@index([ownerType])
+}
+
+model LedgerEntry {
+  id          String   @id @default(cuid())
+  walletId    String
+  txId        String
+  amount      BigInt
+  balanceAfter BigInt
+  description String
+  createdAt   DateTime @default(now())
+
+  wallet Wallet      @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  tx     Transaction @relation(fields: [txId], references: [id], onDelete: Cascade)
+
+  @@index([txId])
+  @@index([walletId, createdAt])
+}
+
+model Transaction {
+  id                String            @id @default(cuid())
+  reference         String            @unique
+  senderWalletId    String?
+  recipientWalletId String?
+  senderLabel       String?
+  recipientLabel    String?
+  amount            BigInt
+  currency          String            @default("ETB")
+  type              TransactionType   @default(PAYMENT)
+  status            TransactionStatus @default(PENDING)
+  purpose           String?
+  category          String?
+  description       String?
+  idempotencyKey    String?           @unique
+  meta              Json?
+  createdAt         DateTime          @default(now())
+  completedAt       DateTime?
+
+  senderWallet    Wallet?           @relation("TxSender", fields: [senderWalletId], references: [id], onDelete: SetNull)
+  recipientWallet Wallet?           @relation("TxRecipient", fields: [recipientWalletId], references: [id], onDelete: SetNull)
+  payments        Payment[]
+  ledgerEntries   LedgerEntry[]
+  approval        ApprovalRequest?
+  receipts        Receipt[]
+  qrCode          QrCode?           @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
+  qrCodeId        String?
+  merchant        Merchant?         @relation("MerchantTransactions", fields: [merchantId], references: [id], onDelete: SetNull)
+  merchantId      String?
+  company         Company?          @relation("CompanyTransactions", fields: [companyId], references: [id], onDelete: SetNull)
+  companyId       String?
+  reversalOfId    String?
+  reversalOf      Transaction?      @relation("TxReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
+  reversals       Transaction[]     @relation("TxReversal")
+  paymentRequest  PaymentRequest?
+
+  @@index([createdAt])
+  @@index([companyId, createdAt])
+  @@index([merchantId, createdAt])
+  @@index([senderWalletId, createdAt])
+  @@index([recipientWalletId, createdAt])
+  @@index([status])
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  txId          String        @unique
+  rail          String        @default("internal")
+  railRef       String?
+  status        PaymentStatus @default(PENDING)
+  failureReason String?
+  createdAt     DateTime      @default(now())
+  completedAt   DateTime?
+
+  tx Transaction @relation(fields: [txId], references: [id], onDelete: Cascade)
+}
+
+// A merchant-initiated charge: "pay me exactly X ETB". The merchant shows the
+// generated QR / code, the employee scans or types it, and the amount is locked
+// so the merchant receives precisely what was requested.
+model PaymentRequest {
+  id         String               @id @default(cuid())
+  merchantId String
+  token      String               @unique
+  code       String               @unique
+  amount     BigInt
+  currency   String               @default("ETB")
+  purpose    String
+  status     PaymentRequestStatus @default(OPEN)
+  expiresAt  DateTime?
+  txId       String?              @unique
+  paidAt     DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  merchant Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  tx       Transaction? @relation(fields: [txId], references: [id], onDelete: SetNull)
+
+  @@index([merchantId, createdAt])
+  @@index([status])
+}
+
+model SpendingLimit {
+  id                String   @id @default(cuid())
+  companyId         String
+  name              String   @default("Default policy")
+  dailyLimit        BigInt   @default(0)
+  monthlyLimit      BigInt   @default(0)
+  txLimit           BigInt   @default(0)
+  allowedCategories String   @default("")
+  blockedCategories String   @default("")
+  isDefault         Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model Budget {
+  id         String   @id @default(cuid())
+  companyId  String
+  employeeId String   @unique
+  monthly    BigInt   @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company  Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model ApprovalRule {
+  id           String   @id @default(cuid())
+  companyId    String
+  minAmount    BigInt   @default(0)
+  maxAmount    BigInt?
+  approverRole UserRole
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model ApprovalRequest {
+  id         String         @id @default(cuid())
+  txId       String         @unique
+  employeeId String
+  status     ApprovalStatus @default(PENDING)
+  approverId String?
+  decidedAt  DateTime?
+  reason     String?
+  createdAt  DateTime       @default(now())
+
+  tx       Transaction      @relation(fields: [txId], references: [id], onDelete: Cascade)
+  employee EmployeeProfile  @relation("ApprovalRequests", fields: [employeeId], references: [id], onDelete: Cascade)
+  approver User?            @relation("ApprovalDecisions", fields: [approverId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+model Receipt {
+  id            String        @id @default(cuid())
+  txId          String
+  employeeId    String
+  fileName      String
+  fileType      String
+  fileSize      Int
+  dataUrl       String?       @db.Text
+  invoiceNumber String?
+  notes         String?
+  status        ReceiptStatus @default(PENDING)
+  uploadedAt    DateTime      @default(now())
+
+  tx       Transaction     @relation(fields: [txId], references: [id], onDelete: Cascade)
+  employee EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([txId])
+  @@index([employeeId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  read      Boolean          @default(false)
+  txId      String?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  companyId String?
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  ip        String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  actor   User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([actorId])
+}
+
+model QrCode {
+  id         String       @id @default(cuid())
+  merchantId String
+  token      String       @unique @default(cuid())
+  payload    String       @unique
+  status     QrCodeStatus @default(ACTIVE)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  merchant     Merchant      @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([merchantId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  createdAt DateTime @default(now())
+
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees EmployeeProfile[] @relation("EmployeeCategories")
+
+  @@unique([companyId, name])
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  createdAt DateTime @default(now())
+
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees EmployeeProfile[]
+
+  @@unique([companyId, name])
+}
+
+// ── Payment rails registry (pluggable infrastructure layer) ──
+model PaymentMethod {
+  id        String  @id @default(cuid())
+  code      String  @unique
+  name      String
+  rail      String
+  enabled   Boolean @default(true)
+  isDefault Boolean @default(false)
+}

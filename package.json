@@ -1,0 +1,49 @@
+{
+  "name": "etcupi",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:generate": "prisma generate --schema src/lib/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema src/lib/prisma/schema.prisma",
+    "db:deploy": "prisma migrate deploy --schema src/lib/prisma/schema.prisma",
+    "db:seed": "tsx src/lib/prisma/seed.ts",
+    "db:studio": "prisma studio --schema src/lib/prisma/schema.prisma",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "prisma": {
+    "schema": "src/lib/prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "6",
+    "bcryptjs": "^2.4.3",
+    "jose": "^5.10.0",
+    "next": "16.3.6",
+    "qrcode": "^1.5.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "^7.89.0",
+    "recharts": "^2.15.4",
+    "zod": "^3.25.76",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^26",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "postcss": "^8.5.28",
+    "prisma": "6",
+    "tailwindcss": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^5.0.2"
+  }
+}

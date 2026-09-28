@@ -1,0 +1,14 @@
+import { defineConfig } from "vitest/config";
+import tsconfigPaths from "vite-tsconfig-paths";
+
+export default defineConfig({
+  plugins: [tsconfigPaths()],
+  test: {
+    environment: "node",
+    include: ["tests/**/*.test.ts"],
+    testTimeout: 30000,
+    // The suite shares one Postgres test database and each file resets it,
+    // so files must not run in parallel.
+    fileParallelism: false,
+  },
+});
