@@ -1,0 +1,118 @@
+// ── i18n: English / Amharic ──────────────────────────────────
+// UI strings live here instead of being hard-coded, so both languages stay in
+// sync. Use `useT()` (client) or `getT()` (server) with a locale from the
+// `etcupi_locale` cookie.
+
+export const LOCALES = ["en", "am"] as const;
+export type Locale = (typeof LOCALES)[number];
+export const LOCALE_COOKIE = "etcupi_locale";
+
+const en = {
+  appName: "etCupi",
+  signIn: "Sign in",
+  signOut: "Sign out",
+  email: "Email",
+  password: "Password",
+  dashboard: "Dashboard",
+  employees: "Employees",
+  transactions: "Transactions",
+  approvals: "Approvals",
+  merchants: "Merchants",
+  limits: "Limits & Policy",
+  reports: "Reports",
+  settings: "Settings",
+  home: "Home",
+  pay: "Pay",
+  activity: "Activity",
+  wallet: "Wallet",
+  profile: "Profile",
+  scanAndPay: "Scan & Pay",
+  available: "Available",
+  monthlySpent: "Monthly spent",
+  recentPayments: "Recent payments",
+  amount: "Amount",
+  purpose: "Purpose",
+  category: "Category",
+  confirmPayment: "Confirm Payment",
+  paymentSuccessful: "Payment Successful",
+  awaitingApproval: "Awaiting approval",
+  reference: "Reference",
+  viewReceipt: "View Receipt",
+  receipts: "Receipts",
+  uploadReceipt: "Upload receipt",
+  completed: "Completed",
+  pending: "Pending",
+  failed: "Failed",
+  reversed: "Reversed",
+  cancelled: "Cancelled",
+  corporateBalance: "Corporate balance",
+  spentThisMonth: "Spent this month",
+  pendingApproval: "Pending approval",
+  allocate: "Allocate",
+  addEmployee: "Add employee",
+  myQr: "My QR",
+  todaySales: "Today's sales",
+  currency: "ETB",
+  goodMorning: "Good morning",
+  goodAfternoon: "Good afternoon",
+  goodEvening: "Good evening",
+};
+
+const am: typeof en = {
+  appName: "ኧትኩፒ",
+  signIn: "ግባ",
+  signOut: "ውጣ",
+  email: "ኢሜይል",
+  password: "የይለፍ ቃል",
+  dashboard: "ዳሽቦርድ",
+  employees: "ሰራተኞች",
+  transactions: "ግብይቶች",
+  approvals: "ፈቃዶች",
+  merchants: "ነጋዴዎች",
+  limits: "ወሰኖችና ፖሊሲ",
+  reports: "ሪፖርቶች",
+  settings: "ቅንብሮች",
+  home: "ቤት",
+  pay: "ክፈል",
+  activity: "እንቅስቃሴ",
+  wallet: "ዋሌት",
+  profile: "መገለጫ",
+  scanAndPay: "ስካን አድርገው ይክፈሉ",
+  available: "የሚገኝ",
+  monthlySpent: "ወሳዊ ወጪ",
+  recentPayments: "የቅርብ ክፍያዎች",
+  amount: "መጠን",
+  purpose: "ዓላማ",
+  category: "ምድብ",
+  confirmPayment: "ክፍያውን አረጋግጥ",
+  paymentSuccessful: "ክፍያው ተሳክቷል",
+  awaitingApproval: "ፈቃድ በመጠበቅ ላይ",
+  reference: "ማጣቀሻ",
+  viewReceipt: "ደረሰኝ ይመልከቱ",
+  receipts: "ደረሰኞች",
+  uploadReceipt: "ደረሰኝ ስቀል",
+  completed: "ተጠናቋል",
+  pending: "በመጠበቅ ላይ",
+  failed: "አልተሳካም",
+  reversed: "ተመልሷል",
+  cancelled: "ተሰርዟል",
+  corporateBalance: "የኩባንያ ሂሳብ",
+  spentThisMonth: "በዚህ ወር የተወጣ",
+  pendingApproval: "ፈቃድ ሲጠበቅ",
+  allocate: "ያድልጡ",
+  addEmployee: "ሰራተኛ ጨምር",
+  myQr: "የእኔ ኪዩአር",
+  todaySales: "የዛሬ ሽያጭ",
+  currency: "ብር",
+  goodMorning: "እንደምን አደሩ",
+  goodAfternoon: "እንደምን ዋሉ",
+  goodEvening: "እንደምን አመሸው",
+};
+
+export type Dict = typeof en;
+
+const DICTS: Record<Locale, Dict> = { en, am };
+
+export function getDict(locale: string | undefined | null): Dict {
+  return DICTS[(locale as Locale) ?? "en"] ?? en;
+}
